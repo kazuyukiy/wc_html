@@ -2,6 +2,7 @@ use std::io::Write;
 use std::net::TcpListener;
 use std::net::TcpStream;
 
+mod js_css;
 mod thread_pool;
 mod wc_handler;
 // mod swimming;
@@ -24,6 +25,11 @@ fn main() {
 
     // DBG
     // shop::shop();
+
+    // Copy wc.js, wc.css to ./page/
+    // Do it only once when start main()
+    // if you change wc.js or wc.css, you may restart main() or copy it manulally
+    js_css::setup();
 
     wc_handler::system_ini();
 
