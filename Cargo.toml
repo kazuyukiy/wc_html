@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 html5ever = "0.25"
+httparse = "1.8"
 json = "0.12"
 markup5ever = "0.10"
 markup5ever_rcdom = "0.1"

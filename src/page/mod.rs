@@ -9,13 +9,15 @@ mod page_dom;
 mod page_dom_utility;
 mod page_file;
 mod page_json;
-mod page_json_utility;
+pub mod page_json_utility;
 mod page_system_update;
 mod page_system_update_0_0_1_to_0_0_3;
 mod page_system_update_old_to_0_0_3;
 mod page_utility;
 
 use regex::Regex;
+
+pub struct Test {}
 
 pub struct Page {
     pub url: url::Url,

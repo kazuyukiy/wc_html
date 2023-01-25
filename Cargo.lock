@@ -85,6 +85,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "httparse"
+version = "1.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d897f394bad6a705d5f4104762e116a75639e470d80901eed05a860a95cb1904"
+
+[[package]]
 name = "idna"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -557,6 +563,7 @@ name = "wc_html"
 version = "0.1.0"
 dependencies = [
  "html5ever",
+ "httparse",
  "json",
  "markup5ever",
  "markup5ever_rcdom",
