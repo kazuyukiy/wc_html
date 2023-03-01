@@ -1,3 +1,5 @@
 /target
 /pages
 *~
+src/js_css/wc.js*
+src/js_css/wc.css*
