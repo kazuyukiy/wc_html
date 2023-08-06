@@ -30,7 +30,7 @@ pub fn page_json_blank() -> json::JsonValue {
 
             "subsection" : {
                 "id" : {
-                    "id_next" : 2,
+                    "id_next" : 1,
                     "id_notinuse" : []
                 },
 

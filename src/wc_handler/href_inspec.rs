@@ -69,23 +69,89 @@ impl HrefInspec<'_> {
         // ATTENTION
         println!("ATTENTION href_inspec5 impl HrefInspec fn href_req_handle about self.imd_page is not corded completely");
 
+        let mut jv = json::object! {};
+
+        //
+        // println!(
+        //     "href_inspec5 impl HrefInspec caller_page.url: {:?}",
+        //     self.caller_page.url,
+        // );
+        // println!(
+        //     "href_inspec5 impl HrefInspec caller_page.url.host: {:?}",
+        //     self.caller_page.url.host().unwrap(),
+        // );
+
+        // println!(
+        //     "href_inspec5 impl HrefInspec self.req_url_str: {}",
+        //     &self.req_url_str,
+        // );
+
+        // let req_url = match url::Url::parse(&self.req_url_str) {
+        //     // Ok(u) => Some(u),
+        //     Ok(u) => u,
+        //     Err(_) => return Some(jv.to_string().into_bytes()),
+        // };
+        // println!("href_inspec5 impl HrefInspec self.req_url: {:?}", &req_url);
+        // println!(
+        //     "href_inspec5 impl HrefInspec self.req_url.host: {:?}",
+        //     // &req_url.unwrap().host().unwrap()
+        //     &req_url.host().unwrap()
+        // )
+
+        // if self.caller_page.url.host() == req_url.host() {
+        //     println!("href_inspec5 impl HrefInspec host match");
+        // } else {
+        //     println!("href_inspec5 impl HrefInspec host NOT match");
+        // }
+
         let (dest, url_valid) = self.dest();
 
-        // println!("href_inspec5 impl HrefInspec fn href_req_handle dest: {:?}", dest);
+        // println!(
+        //     "href_inspec5 impl HrefInspec fn href_req_handle dest: {:?}",
+        //     dest
+        // );
+        // println!(
+        //     "href_inspec5 impl HrefInspec fn href_req_handle url_valid: {:?}",
+        //     url_valid
+        // );
+        // println!(
+        //     "href_inspec5 impl HrefInspec fn href_req_handle url_valid.host: {:?}",
+        //     &url_valid.as_ref().unwrap().host_str()
+        // );
 
-        let mut jv = json::object! {};
+        // let mut jv = json::object! {};
+
+        // different host
+        match &url_valid {
+            Some(url_valid) => {
+                if &url_valid[..url::Position::AfterHost]
+                    != &self.req_page.url[..url::Position::AfterHost]
+                {
+                    // println!("NOT HOST match ");
+                    // println!("url_valid: {} ", url_valid);
+                    // println!("req_url_str: {} ", self.req_url_str);
+                    // return;
+
+                    jv["dest"] = self.req_url_str.into();
+                    return Some(jv.to_string().into_bytes());
+                }
+            }
+            None => (),
+        }
 
         if let Some(dest) = dest {
             // jv["dest"] = dest[url::Position::AfterHost..].into();
             jv["dest"] = dest.path().into();
         }
 
-        self.href_update(url_valid);
+        // temporaly comment out
+        // because it delete the crurrent href link of the page
+        // self.href_update(url_valid);
 
-        println!(
-            "href_inspec5 impl HrefInspec fn href_req_handle jv: {:?}",
-            &jv
-        );
+        // println!(
+        //     "href_inspec5 impl HrefInspec fn href_req_handle jv: {:?}",
+        //     &jv
+        // );
 
         Some(jv.to_string().into_bytes())
     } // end of fn href_req_handle
@@ -95,7 +161,7 @@ impl HrefInspec<'_> {
     // url_valid : url to be updated to
     fn dest(&mut self) -> (Option<url::Url>, Option<url::Url>) {
         // fn dest(&mut self) -> (Option<&url::Url>, Option<&url::Url>) {
-        println!("href_inspec5 impl HrefInspec fn dest");
+        // println!("href_inspec5 impl HrefInspec fn dest");
 
         if self.hash_none() {
             let url_valid = match self.imd_page.as_ref() {
@@ -285,6 +351,35 @@ impl HrefInspec<'_> {
             None => return,
         };
 
+        // println!(
+        //     "href_inspec HrefInspec href_update url_valid: {}",
+        //     url_valid
+        // );
+        // println!(
+        //     "href_inspec HrefInspec href_update url_valid: {}",
+        //     &url_valid[..url::Position::AfterHost]
+        // );
+        // println!(
+        //     "href_inspec HrefInspec href_update url_req_page: {}",
+        //     self.req_page.url
+        // );
+        // println!(
+        //     "href_inspec HrefInspec href_update url_req_page: {}",
+        //     &self.req_page.url[..url::Position::AfterHost]
+        // );
+
+        // different host
+        if &url_valid[..url::Position::AfterHost] != &self.req_page.url[..url::Position::AfterHost]
+        {
+            // println!("NOT HOST match ");
+            return;
+        }
+        // else {
+        //     println!("3HOST match ");
+        // }
+
+        // println!("Then ");
+
         // No change href
         if self.req_page.url[url::Position::AfterHost..] == url_valid[url::Position::AfterHost..] {
             return;
@@ -326,6 +421,8 @@ impl HrefInspec<'_> {
         let to = r#"href=""#.to_owned() + &to_url + r#"""#;
         let to = to.replace(r#"""#, r#"\""#);
 
+        // println!("href_inspec impl HrefInspec fn href_update to: {}", &to);
+
         // Replace from to to
         let page_json_str = page_json_str.replace(&from, &to);
 
@@ -343,3 +440,39 @@ impl HrefInspec<'_> {
         self.caller_page.page_json_update_save();
     } // end of fn href_update
 } // end of impl HrefInspec
+
+// src > wc_handler > mod.rs > impl Hnadler > post_handle
+// if request == "href" {
+//     return self.href_req();
+// }
+//
+
+// src > wc_handler > mod.rs > impl Hnadler > post_handle > href_req
+// caller_url: https://127.0.0.1:8080/Computing/computing_iroiro.html
+// url_req: https://doc.rust-lang.org/book/title-page.html
+// // return href_inspec.href_req_handle();
+// match href_inspec.href_req_handle() {
+//     Some(v) => Ok(v),
+//     None => Err("href_inspec.href_req_handle failed".to_string()),
+// }
+
+//
+// src > wc_handler > href_inspec.rs > immpl HrefInspec > href_req_handle
+//
+
+// find converting url strings to Url
+// src > wc_handler > href_inspec.rs > impl HrefInspec > from
+// arguments caller_url: &url::Url
+//
+// src > wc_handler > mod.rs > impl Handler > href_req
+//         let mut href_inspec = match href_inspec::HrefInspec::from(&caller_url, &url_req) {
+//         if let Some(caller_url) = &self.request.url() {
+// self.request:  http_request::HttpRequest,
+// self.request.url()
+//
+// http_request.rs
+// let url = format!("https://{}{}", &host, &self.path);
+// match url::Url::parse(&url) {
+//     Ok(u) => Some(u),
+//     Err(_) => None,
+// }
