@@ -249,6 +249,13 @@ impl Handler {
             None => return Err("request.url failed".to_string()),
         };
 
+        // println!(
+        //     "wc_handler5 impl Handler fn href_req caller_url: {}",
+        //     caller_url
+        // );
+
+        // caller_url.host()
+
         let req = match self.request.body_json_value() {
             Some(v) => v,
             None => return Err("request.body_json_value not found".to_string()),
@@ -256,7 +263,51 @@ impl Handler {
 
         let url_req = req["href"].as_str().unwrap();
 
-        println!("wc_handler5 impl Handler fn href_req url_req: {}", url_req);
+        // println!("wc_handler5 impl Handler fn href_req url_req: {}", url_req);
+
+        let url_req2 = match url::Url::parse(&url_req) {
+            Ok(u) => Some(u),
+            Err(_) => None,
+        };
+
+        //	let url_dest2 = match url::Url::parse(&) {}
+
+        // let url_caller = match &self.request.url() {
+        //     Some(v) => Some(v),
+        //     None => None,
+        // };
+
+        // if let Some(caller_url) = &self.request.url() {
+        //     println!(
+        //         "wc_handler5 impl Handler fn href_req caller_url: {}",
+        //         &caller_url
+        //     );
+        // }
+
+        // println!(
+        //     "wc_handler5 impl Handler fn href_req url_req2: {:?}",
+        //     url_req2
+        // );
+
+        // if let Some(req2) = url_req2 {
+        // println!(
+        //     "wc_handler5 impl Handler fn href_req req2.host: {:?}",
+        //     req2.host()
+        // );
+        // if let Some(req_host) = req2.host() {
+        // println!(
+        //     "wc_handler5 impl Handler fn href_req req_host: {}",
+        //     req_host
+        // );
+
+        // href_inspec5 impl HrefInspec fn href_req_handle url_valid: Some(Url { scheme: "https", cannot_be_a_base: false, username: "", password: None, host: Some(Ipv4(127.0.0.1)), port: Some(8080), path: "/Computing/computing_iroiro.html", query: None, fragment: None })
+
+        // println!(
+        //     "wc_handler5 impl Handler fn href_req self_host: {}",
+        //     &self.request.url()
+        // );
+        // }
+        // }
 
         let mut href_inspec = match href_inspec::HrefInspec::from(&caller_url, &url_req) {
             Ok(v) => v,

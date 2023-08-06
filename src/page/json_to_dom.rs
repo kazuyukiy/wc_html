@@ -65,6 +65,9 @@ fn head_set(page_dom: &page_dom::PageDom, page_json: &json::JsonValue) {
     let script = node_element("script", &vec![("src", "/wc.js")]);
     head_children.push(script);
 
+    // indivisual source may have own css
+    // so that the contents can be seen without any external css file
+    // however better to apply both cases, without and with external css file
     // <style type="text/css">
     head_children.push(style_node());
     // style_inhead_set(page_dom);
@@ -109,7 +112,7 @@ fn style_node() -> Rc<Node> {
       }
       .script {
 	  border: solid 1px black;
-	  width: 400px;
+	  _width: 400px;
 	  background: #e6e6fa;
 	  padding: 10px;
 	  resize: both;
