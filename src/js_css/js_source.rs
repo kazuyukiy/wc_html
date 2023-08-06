@@ -2,8 +2,9 @@ pub fn contents() -> &'static str {
     // pub fn contents() -> [u8] {
     //     b####"
 
-    //    r####"
-    // "####
+    // write the javascript code and put it into
+    // r####"<javascript code>"####
+    // in below
 
     r####"
 'use strict';
@@ -34,6 +35,13 @@ function bodyOnload () {
 
     page_json = page_json_read();
 
+
+    /* Blox */
+
+    const eleBloxTarget = document.createElement('div');
+    document.body.appendChild(eleBloxTarget);
+    
+
     // top element
     // all elements concern to this wc is unser this element
     const elePageTarget = document.createElement('div');
@@ -53,6 +61,18 @@ function bodyOnload () {
 
     scrollUrlHash();
 
+
+    /* Blox */
+
+    const bloxCenter = new BloxCenter();
+    // const page_bx2 = bloxCenter.top("Page_bx");
+    const page_bx2 = bloxCenter.bxTop("Page_bx");
+    page_bx2.initAndDraw(
+	{ "data" : page_json,
+	  "target" : eleBloxTarget,
+	}
+    );
+    
     // test02();
 
 } // end of function bodyOnload;
@@ -76,6 +96,22 @@ function page_json_read () {
     return f0();
     
 } // end of function page_json_read
+
+function editorModeInit(page_bx) {
+
+    page_bx.editor().elePageTop(page_bx.element().ele());
+    
+    const items = page_bx.navi().items();
+    if(items.length == 0) { return; }
+    const itemLast = items[items.length -1];
+    page_bx.editor().eleEditorOn(itemLast.element().ele());
+    
+    // console.log("wc.js function editorModeInit ele:" + page_bx.editor().eleEditorOn());
+
+    // page_bx.editor().modeOff();
+    page_bx.editor().modeOff();
+
+} // end of function editorModeInit
 
 function entityReferenceSet(str) {
 
@@ -170,7 +206,6 @@ class Page {
 
 	this.subsectionTop().oneChildAtleast();
 
-	
     } // end of eleDraw
 
     // Create targets for children .
@@ -362,7 +397,16 @@ class Page {
 
 } // end of class Page
 
-// obj.ele : node to draw
+
+// To draw ele give obj.ele
+// To remove ele drawn give obj.ele (ele:undefined)
+//
+// do only on of 1) to 3) untill it mach
+// 1) nextFcode: draw it before node that nextFcode returns
+// 2) if a drawn node exists, replace it with new node
+// 3) targetFcode: draw it at last child of the node that targetFcode returns
+//
+// obj.ele (ele: node to draw)
 // obj.ele(undefined) : remove obj.drawn
 // obj.drawn : current node drawn
 // obj.targetFcode : code to get the target to appendChild.
@@ -400,7 +444,9 @@ function eleHandle(that, obj, ...args) {
 	obj[key] = def[key];
     }
 
-    // args[0] has a key "ele"
+    // def: args[0]
+    // case def.ele is node: draw it 
+    // case def.ele is undefined, remove obj.drawn node
     if(Object.keys(def).includes("ele")){
 	let eleDrawn = obj.drawn;
 	// Case ele (in args[0]) is undefined
@@ -417,7 +463,7 @@ function eleHandle(that, obj, ...args) {
 	}
 	// Draw obj.ele 
 	// Replace if it previous eleDrawn exists .
-	else{
+	else {
 
 	    // Consider to replace current ele to new ele
 	    // but current ele is not in a new target,
@@ -443,14 +489,16 @@ function eleHandle(that, obj, ...args) {
 		    }
 		}
 	    }
-	    
+
+	    // not drawn insertBefore eleNext
 	    // replace eleDraw with eleNew
 	    if(doDraw && eleDrawn){
 		eleDrawn.parentNode.replaceChild(eleNew, eleDrawn);
 		doDraw == false;
 	    }
-	    
-	    // draw eleNew
+
+	    // if targetFcode returns eleTarget
+	    // draw eleNew eleTarget.appendChild
 	    if(doDraw){
 		const fcode = Function("return this."+ obj.targetFcode +";");
 		const fref = fcode.apply(that);
@@ -857,15 +905,26 @@ class Editor {
 
     } // end of editor_changed
 
+    editor_eventIndividual(obj, event) {
+	let attClass = event.target.getAttribute("class").split(" ");
+	for (const name of attClass) {
+	    const f0_code = new Function('return this.editor_'+name+';');
+	    const f0 = f0_code.apply(obj);
+	    if(f0 == undefined){ continue;}
+	    f0.apply(obj, [event]);
+	}
+    } // end of editor_eventIndividual
+    
 } // end of class Editor
 
 const editor_menu_item  = [
-    'cancel', 'enter', "insertMenu", "moveMenu"
-    , 'insertBefore', "insertAfter"
+    'cancel', 'enter', "moveMenu" // "insertMenu", 
+    , 'insertMenuBefore', "insertMenuAfter"
     , 'newPage', 'subContent'
     , 'delete'
     , 'deleteExecute'
     , 'deleteCancel'
+    , 'eventIndividual'
 ];
 
 const classEditList2 =
@@ -1222,6 +1281,7 @@ function editorMoveEventListenerSet(caller, classList) {
     
 } // end of function editorMoveEventListenerSet
 
+// Navi: navication pages
 class Navi {
     // console.log("wc.js class Navi");
 
@@ -1259,7 +1319,7 @@ class Navi {
 	
     } // end of items
 
-    itemNew(target) {
+    itemNew(target, direction) {
 	// console.log("wc.js class Navi itemNew()");
 	
 	// target: target of NaviItem to put a new NaviItem aftar that.
@@ -1268,8 +1328,11 @@ class Navi {
 	let index = 0;
 	for(index = 0;  index < navis.length; index++){
 	    if(target.index() == index){
-		// Insert new NaviItem data after target.index 
-		index += 1;
+		// // Insert new NaviItem data after target.index
+		if (direction == "after") {
+		    index += 1;
+		}
+		// index += 1;
 		break;
 	    }
 	}
@@ -1362,6 +1425,7 @@ class Navi {
     
 } // end of class Navi
 
+// NaviItem: part to point to each page
 class NaviItem {
     // console.log("wc.js class NaviItem");
 
@@ -1471,7 +1535,8 @@ class NaviItem {
     editor_open() {
 	// console.log("wc.js class NaviItem editor_open");
 
-	if(this.insertNew){
+	// if(this.insertNew){}
+	if(this.insertDirection){
 	    return this.editor_insert_open();
 	}
 	// if(this.isBlank){
@@ -1479,7 +1544,7 @@ class NaviItem {
 	// }
 
 	let html = htmlEditorBox;
-	html = html.replace("<!--placeHolder-->", htmlEditorNaviItemTitle);
+	html = html.replace("<!--placeHolder-->", htmlEditorTitleHref);
 	html = html.replace("<!--placeHolder-->", htmlEditorEnter);
 	html = html.replace("<!--placeHolder-->", htmlEditorMove);
 
@@ -1525,8 +1590,9 @@ class NaviItem {
     editor_enter() {
 
 	// Insert new
-	// a temporary NaviItem made at this.editor_insertMenu()
-	if(this.insertNew){
+	// a temporary NaviItem made at this.editor_insertMenu_to()
+	// if(this.insertNew){}
+	if(this.insertDirection){
 	    this.editor_insert_enter();
 	    return;
 	}
@@ -1596,26 +1662,57 @@ class NaviItem {
 
     } // end of editor_move
     
-    editor_insertMenu() {
-	
+    editor_insertMenuBefore() {
+	// console.log("wc.js class NaviItem editor_insertMenuBefore()");
+
+	this.editor_insertMenu_to("before");
+
+    } // end of editor_insertMenuBefore
+    
+    editor_insertMenuAfter() {
+	// console.log("wc.js class NaviItem editor_insertMenuAfter()");
+
+	this.editor_insertMenu_to("after");
+
+    } // end of editor_insertMenuAfter
+    
+    editor_insertMenu_to(insertDirection) {
+	// insertDirection: "before" / "after"
+
 	// close the editor that requested this insert
 	this.page.editor().editor_close(this);
 
 	// Make a temporary NaviItem for this.editor_insert_open() .
 	let naviItemTemp = new NaviItem(this.page, this.eleTarget(), this.navi);
-	naviItemTemp.insertNew = true;
-	naviItemTemp.insertTarget = this;
-
+	// naviItemTemp.insertNew = true;
+	naviItemTemp.insertCaller = this;
+	naviItemTemp.insertDirection = insertDirection;
+	
 	this.page.editor().editor_open(naviItemTemp);
 
-    } // end of editor_insertMenu
+    } // end of editor_insertMenu_to
+    
+    // editor_insertMenu() {
+	
+    // 	// close the editor that requested this insert
+    // 	this.page.editor().editor_close(this);
 
-    // a temporary NaviItem made at this.editor_insertMenu()
+    // 	// Make a temporary NaviItem for this.editor_insert_open() .
+    // 	let naviItemTemp = new NaviItem(this.page, this.eleTarget(), this.navi);
+    // 	naviItemTemp.insertNew = true;
+    // 	naviItemTemp.insertCaller = this;
+
+    // 	this.page.editor().editor_open(naviItemTemp);
+
+    // }
+    // end of editor_insertMenu
+
+    // a temporary NaviItem made at this.editor_insertMenu_to()
     editor_insert_open() {
 	// console.log("wc.js class NaviItem editor_insert_open ");
 
 	let html = htmlEditorBox;
-	html = html.replace("<!--placeHolder-->", htmlEditorNaviItemTitle);
+	html = html.replace("<!--placeHolder-->", htmlEditorTitleHref);
 	html = html.replace("<!--placeHolder-->", htmlEditorEnter);
 
 	let ele = this.page.editor().ele_setup(this, html);
@@ -1632,27 +1729,37 @@ class NaviItem {
 	    "ele" : ele,
 	    "targetFcode" : "editorInsertTarget",
 	};
+
+	if(this.insertDirection == "before"){
+	    eleDef["nextFcode"] = "editorInsertTarget";
+	} else {
+	    eleDef["targetFcode"] = "editorInsertTarget";
+	}
+
 	this.editorEle(eleDef);
 
-	// this.insertTarget.ele().appendChild(editor_ele);
-	
     } // end of editor_insert_open
 
     editorInsertTarget() {
-	return this.insertTarget.ele().drawn;
+	// return this.insertTarget.ele().drawn;
+	return this.insertCaller.ele().drawn;
     } // end of editorInsertTarget
 
-    // a temporary NaviItem made at this.editor_insertMenu()
+    // a temporary NaviItem made at this.editor_insertMenu_to()
     editor_insert_enter() {
 	// console.log("wc.js class NaviItem editor_insert_enter()");
 
+	// this.insertDirection
+	// "before", "after"
+	// this.insertCaller
+	
 	// this.editor_ele():
-	//     a temporary NaviItem made at this.editor_insertMenu()
+	//     a temporary NaviItem made at this.editor_insertMenu_to()
 	let ele = this.editorEle().drawn;
 	let title = ele.querySelector(".inputTitle").value;
 	let href = ele.querySelector(".inputHref").value;
 
-	let itemNew = this.navi.itemNew(this.insertTarget);
+	let itemNew = this.navi.itemNew(this.insertCaller, this.insertDirection);
 	itemNew.data()[0] = title;
 	itemNew.data()[1] = href;
 
@@ -1667,7 +1774,7 @@ class NaviItem {
 	//console.log("wc.js class NaviItem editor_delete");
 
 	let html = htmlEditorBox;
-	html = html.replace("<!--placeHolder-->", htmlEditorNaviItemTitle);
+	html = html.replace("<!--placeHolder-->", htmlEditorTitleHref);
 	html = html.replace("<!--placeHolder-->", htmlEditorMove);
 	
 	let ele = this.page.editor().ele_setup(this, html);
@@ -1679,7 +1786,7 @@ class NaviItem {
 		'editor_hr' : 0
 		,'editor_delete' : 0
 		,'editor_moveMenu' : 0
-		,'editor_insertMenu' : 0
+		// ,'editor_insertMenu' : 0
 		,'editor_deleteConfirm' : 1
 	    }
 	);
@@ -1728,7 +1835,15 @@ const htmlEditorBox = `
 </table>
 `; // end of const htmlEditorBox
 
-const htmlEditorNaviItemTitle = `
+const htmlEditorBoxTitle = `
+	<tr>
+	  <td colspan=2><!--placeHolder_title--></td>
+	</tr>
+<!--placeHolder-->
+`; // end of const htmlEditorBox
+
+// htmlEditorTitleHref
+const htmlEditorTitleHref = `
 	<tr>
 	  <td>title</td>
 	  <td><input class="inputTitle"></td>
@@ -1736,11 +1851,11 @@ const htmlEditorNaviItemTitle = `
 	<tr>
 	  <td>href</td>
 	  <td>
-	    <input class="inputHref">
+	    <input class="inputHref" value="#">
 	  </td>
 	</tr>
 <!--placeHolder-->
-`; // end of const htmlEditorNaviItemTitle
+`; // end of const htmlEditorTitleHref
 
 const htmlEditorEnter = `
 	<tr>
@@ -1773,7 +1888,9 @@ const htmlEditorMove = `
 	      <input type="button" class="editor_deleteExecute" value="Execute">
 	      <input type="button" class="editor_deleteCancel" value="Cancel">
 	    </div>
-            <input type="button" class="editor_insertMenu" value="Insert">
+            Insert 
+            <input type="button" class="editor_insertMenuBefore" value="Before">
+            <input type="button" class="editor_insertMenuAfter" value="After">
           </td>
 	</tr>
 <!--placeHolder-->
@@ -1792,17 +1909,17 @@ const htmlEditorMoveTo = `
 <!--placeHolder-->
 `; // end of const htmlEditorMoveTo
 
-const htmlEditorInsert = `
-	<tr>
-	  <td></td>
-	  <td>
-            Insert 
-            <input type="button" class="editor_insertBefore" value="Before">
-            <input type="button" class="editor_insertAfter" value="After">
-          </td>
-	</tr>
-<!--placeHolder-->
-`; // end of const htmlEditorInsert
+// const htmlEditorInsert_ = `
+// 	<tr>
+// 	  <td></td>
+// 	  <td>
+//             Insert 
+//             <input type="button" class="editor_insertMenuBefore" value="Before">
+//             <input type="button" class="editor_insertMenuAfter" value="After">
+//           </td>
+// 	</tr>
+// <!--placeHolder-->
+// `; // end of const htmlEditorInsert
 
 function navi_arrow(){
     // <span class="naviArrow">&nbsp;&gt;&nbsp;</span>
@@ -1892,14 +2009,14 @@ class Subsection {
 
 	if(! content.isBlank){ return; }
 
-	// if content.insertTarget is defined  and found ,
+	// if content.insertCaller is defined  and found ,
 	// put new content after the target ,
 	// otherwise put after the last .
 	let targetIndex;
 	let contents = this.contents();
-	if(content.insertTarget){
+	if(content.insertCaller){
 	    for(let i =0; i< contents.length; i++){
-		if(contents[i] == content.insertTarget){
+		if(contents[i] == content.insertCaller){
 		    // put it after the target
 		    targetIndex = i + 1;
 		    break;
@@ -1987,6 +2104,28 @@ class Subsection {
 	if(this.eleTargetObj){ return this.eleTargetObj; }
 
     } // end of eleTarget
+
+    // next subsection of this(:subsection) in same structure level
+    subsectionNext() {
+
+	let thisFound;
+	let children = this.parent().children();
+
+	for(let i = 0; i < children.length; i++ ){
+
+	    // If thisFound is true
+	    // the loop is next to "this"
+	    if(thisFound){
+		return children[i];
+	    }
+	    
+	    // find myself
+	    if(children[i] == this){
+		thisFound = true;
+	    }
+	}
+	
+    } // end of subsectionNext
     
     // The next element where this.ele() is appended before .
     // If just next subsection does not have valid ele().drawn,
@@ -2249,10 +2388,10 @@ class Subsection {
 
     // create a new subsection and push it into child
     // and return the subsection
-    child_insert(target_subsection, insert_direction) {
+    child_insert(target_subsection, insertDirection) {
 	// console.log("wc.js class Subsection child_insert()");
 	
-	// insert_direction: "before" / "after"
+	// insertDirection: "before" / "after"
 
 	let subsectionNew = this.childNew();
 	let idNew = subsectionNew.id;
@@ -2262,7 +2401,7 @@ class Subsection {
 	let idPos;
 	for(let i = 0; i < child.length; i++){
 	    if(child[i] == target_id){
-		if(insert_direction == "before"){
+		if(insertDirection == "before"){
 		    idPos = i;
 		}else{
 		    // "after"
@@ -2327,6 +2466,26 @@ class Subsection {
 } // end of class Subsection
 
 const htmlEditorSubsectionContent = `
+<tr class="editor_subsection_content_type">
+	  <td></td>
+	  <td>
+	    <select name="editor_subsection_content_type">
+	      <option value="html">HTML</option>
+	      <option value="text">Text</option>
+	      <option value="script">Script</option>
+	    </select>
+	    <input type="button" value="B" class="editor_eventIndividual textareaBigger">
+	  </td>
+	</tr>
+
+	<tr>
+	  <td></td>
+	  <td><textarea class="editor_subsection_content"></textarea></td>
+	</tr>
+<!--placeHolder-->
+`; // end of const htmlEditorSubsectionContent
+
+const htmlEditorSubsectionContent_ = `
 <tr>
 	  <td>title:</td>
 	  <td><span class="title"></span></td>
@@ -2340,6 +2499,7 @@ const htmlEditorSubsectionContent = `
 	      <option value="text">Text</option>
 	      <option value="script">Script</option>
 	    </select>
+	    <input type="button" value="B" class="editor_eventIndividual textareaBigger">
 	  </td>
 	</tr>
 
@@ -2348,7 +2508,7 @@ const htmlEditorSubsectionContent = `
 	  <td><textarea class="editor_subsection_content"></textarea></td>
 	</tr>
 <!--placeHolder-->
-`; // end of const htmlEditorSubsectionContent
+`; // end of const htmlEditorSubsectionContent_
 
 class SubsectionIndex {
     // console.log("wc.js class SubsectionIndex");
@@ -2441,7 +2601,7 @@ class SubsectionIndex {
 
 	this.ele(eleDef);
 
-	console.log("wc.js class SubsectionIndex eleDraw() list.length:" + this.list().length);
+	// console.log("wc.js class SubsectionIndex eleDraw() list.length:" + this.list().length);
 	
 
 	this.list().forEach(subsection => subsection.indexItem().eleDraw());
@@ -2458,29 +2618,29 @@ class SubsectionIndex {
 
     } // end of ele
 
-    // This editor_optn is called by class Editor::editor_open
-    editor_open() {
-	// console.log("wc.js class SubsectionIndex editor_open()");
+    // // This editor_optn is called by class Editor::editor_open
+    // editor_open_() {
+    // 	console.log("wc.js class SubsectionIndex editor_open()");
 
-	// case new subsection to be inserted
-	if(this.subsection.insert_direction){
-	    return this.editor_insert_open();
-	}
+    // 	// case new subsection to be inserted
+    // 	if(this.subsection.insertDirection){
+    // 	    return this.editor_insert_open();
+    // 	}
 	
-	let html = htmlEditorBox;
-	html = html.replace("<!--placeHolder-->", htmlEditorTitleInput);
-	html = html.replace("<!--placeHolder-->", htmlEditorEnter);
-	html = html.replace("<!--placeHolder-->", htmlEditorMove);
-	let ele = this.page.editor().ele_setup(this, html);
-	this.editorDataSet(ele);
+    // 	let html = htmlEditorBox;
+    // 	html = html.replace("<!--placeHolder-->", htmlEditorTitleInput);
+    // 	html = html.replace("<!--placeHolder-->", htmlEditorEnter);
+    // 	html = html.replace("<!--placeHolder-->", htmlEditorMove);
+    // 	let ele = this.page.editor().ele_setup(this, html);
+    // 	this.editorDataSet(ele);
 
-	let eleDef = {
-	    "ele" : ele,
-	    "targetFcode" : "editorTarget",
-	};
-	this.editorEle(eleDef);
+    // 	let eleDef = {
+    // 	    "ele" : ele,
+    // 	    "targetFcode" : "editorTarget",
+    // 	};
+    // 	this.editorEle(eleDef);
 	
-    } // end of editor_open
+    // } // end of editor_open_
 
     editorTarget() {
 	return this.ele().drawn;
@@ -2520,26 +2680,24 @@ const htmlEditorTitle = `
 <!--placeHolder-->
 `; // end of const htmlEditorTitle
 
-const htmlEditorTitleInput = `
-	<tr>
-	  <td>title</td>
-	  <td><input class="inputTitle"></td>
-	</tr>
-	<tr>
-	  <td>href</td>
-	  <td>
-	    <input class="inputHref">
-	  </td>
-	</tr>
+// const htmlEditorTitleInput = `
+// 	<tr>
+// 	  <td>title</td>
+// 	  <td><input class="inputTitle"></td>
+// 	</tr>
+// 	<tr>
+// 	  <td>href</td>
+// 	  <td><input class="inputHref"></td>
+// 	</tr>
 
-	<tr>
-	  <td></td>
-	  <td>
-	    <input type="button" value="Sub List" class="invisible editSublistCreate">
-	  </td>
-	</tr>
-<!--placeHolder-->
-`; // end of const htmlEditorTitleInput
+// 	<tr>
+// 	  <td></td>
+// 	  <td>
+// 	    <input type="button" value="Sub List" class="invisible editSublistCreate">
+// 	  </td>
+// 	</tr>
+// <!--placeHolder-->
+// `; // end of const htmlEditorTitleInput
 
 class SubsectionIndexItem {
     // console.log("wc.js class SubsectionIndexItem");
@@ -2577,6 +2735,13 @@ class SubsectionIndexItem {
 	// console.log("wc.js class SubsectionIndexItem eleNext()");
 
 	// console.log("wc.js class SubsectionIndexItem eleNext() this.subsection.id: " + this.subsection.id);
+
+	let subsectionNext = this.subsection.subsectionNext();
+	if(subsectionNext == undefined) { return; }
+	return subsectionNext.indexItem().ele().drawn;
+
+
+	
 
 	let match = false;
 	for(const id of this.subsection.parent().data().child){
@@ -2645,16 +2810,17 @@ class SubsectionIndexItem {
     // This is called by class Editor::editor_open
     editor_open() {
 
-	// a temporary Subsection made at this.editor_insertMenu_direction()
-	if(this.subsection.insert_direction){
+	// a temporary Subsection made at this.editor_insertMenu_to()
+	if(this.subsection.insertDirection){
 	    return this.editor_insert_open();
 	}
 
 	let html = htmlEditorBox;
-	html = html.replace("<!--placeHolder-->", htmlEditorTitleInput);
+	// html = html.replace("<!--placeHolder-->", htmlEditorTitleInput);
+	html = html.replace("<!--placeHolder-->", htmlEditorTitleHref);
 	html = html.replace("<!--placeHolder-->", htmlEditorEnter);
 	html = html.replace("<!--placeHolder-->", htmlEditorMove);
-	html = html.replace("<!--placeHolder-->", htmlEditorInsert);
+	// html = html.replace("<!--placeHolder-->", htmlEditorInsert);
 	let ele = this.page.editor().ele_setup(this, html);
 
 	eleVisibleSet(ele, {'editor_newPage' : 1});
@@ -2693,8 +2859,8 @@ class SubsectionIndexItem {
     editor_enter() {
 	// console.log("wc.js class SubsectionIndexItem editor_enter()");
 
-	// a temporary Subsection made at this.editor_insertMenu_direction()
-	if(this.subsection.insert_direction){
+	// a temporary Subsection made at this.editor_insertMenu_to()
+	if(this.subsection.insertDirection){
 	    this.editor_insert_enter();
 	    return;
 	}
@@ -2779,99 +2945,146 @@ class SubsectionIndexItem {
 	
     } // end of editor_enter_href
 
-    editor_insertMenu() {
-	// console.log("wc.js class SubsectionIndexItem editor_insertMenu()");
+    // editor_insertMenu() {
+    // 	// console.log("wc.js class SubsectionIndexItem editor_insertMenu()");
 
-	this.editor_insertMenu_direction("after");
+    // 	this.editor_insertMenu_to("after");
 
-    } // end of editor_insertMenu
+    // } // end of editor_insertMenu
 
-    editor_insertBefore() {
-	// console.log("wc.js class SubsectionIndexItem editor_insertBefore()");
+    editor_insertMenuBefore() {
+	// console.log("wc.js class SubsectionIndexItem editor_insertMenuBefore()");
 
-	this.editor_insertMenu_direction("before");
+	this.editor_insertMenu_to("before");
 
-    } // end of editor_insertBefore
+    } // end of editor_insertMenuBefore
     
-    editor_insertAfter() {
-	// console.log("wc.js class SubsectionIndexItem editor_insertAfter()");
+    editor_insertMenuAfter() {
+	// console.log("wc.js class SubsectionIndexItem editor_insertMenuAfter()");
 
-	this.editor_insertMenu_direction("after");
+	this.editor_insertMenu_to("after");
 
-    } // end of editor_insertAfter
+    } // end of editor_insertMenuAfter
     
     // a temporary Subsection
-    editor_insertMenu_direction(insert_direction) {
-	// insert_direction: "before" / "after"
+    editor_insertMenu_to(insertDirection) {
+	// insertDirection: "before" / "after"
 
 	// close the editor menu that requested this insert
 	this.page.editor().editor_close(this);
 
 	// a temporary Subsection
 	// create a temporary Subsection that not exists yet to be inserted
-	// to call a subsection, should use this.page().subsection(id)
-	// but since this subsection not exists yet, use new Subsection
+	// It is not sure if it will be inserted or discarded at this point.
+	// To call a subsection, should use this.page().subsection(id) with id
+	// But since this subsection not exists yet, use new Subsection
 	let subsectionTemp = new Subsection(this.page, undefined);
 	// memory where to be inserted to, and what on
-	subsectionTemp.insertTarget = this.subsection;
-	subsectionTemp.insert_direction = insert_direction;
+	subsectionTemp.insertCaller = this.subsection;
+	subsectionTemp.insertDirection = insertDirection;
 	let indexItem = subsectionTemp.indexItem();
 	// open new editor for new subsection indexItem
 	this.page.editor().editor_open(indexItem);
 
-    } // end of editor_insertMenu_direction
+    } // end of editor_insertMenu_to
 
-    // a temporary Subsection made at this.editor_insertMenu_direction()
+    // a temporary Subsection made at this.editor_insertMenu_to()
     // Called by this.editor_open()
     editor_insert_open() {
 	// console.log("wc.js class SubsectionIndexItem editor_insert_open()");
 
 	let html = htmlEditorBox;
+	
+	let htmlBoxTitle = htmlEditorBoxTitle.replace(
+	    "<!--placeHolder_title-->","New Subsection");
+	html = html.replace("<!--placeHolder-->", htmlBoxTitle);
+	
+	// html = html.replace("<!--placeHolder_title-->", "New Subsection");
+
+	html = html.replace("<!--placeHolder-->", htmlEditorTitleHref);
+	
+	// html = html.replace("<!--placeHolder-->",htmlEditorSubmissionInsertTitle2);
+	
 	html = html.replace("<!--placeHolder-->",
-			    htmlEditorSubmissionInsertTitle);
+			    htmlEditorSubmissionInsertMenu);
+	
 	let ele = this.page.editor().ele_setup(this, html);
 
-	let eleDef = {"ele" : ele};
-
+	let eleDef = {
+	    "ele" : ele,
+	    "targetFcode" : "editor_insert_target_ele",
+	};
 
 	// !!!!!!!!!!!!!!!!!!!!!!!!
-	// if(this.subsection.insert_direction == "before")
-	// if(this.subsection.insert_direction == "after")
-	// eleDef["nextFcode"] = "editor_insertOpenTarget";
-	
-	// eleDef["targetFcode"] = "editor_insertOpenTarget";
+	// if(this.subsection.insertDirection == "before")
+	// if(this.subsection.insertDirection == "after")
+	// eleDef["nextFcode"] = "editor_insert_target_ele";
 
-	if(this.subsection.insert_direction == "before"){
-	    eleDef["nextFcode"] = "editor_insertOpenTarget";
+	// DBG
+	// eleDef["nextFcode"] = "editor_insert_target_ele";
+
+	if(this.subsection.insertDirection == "before"){
+	    // eleDef["nextFcode"] = "editor_insert_target_ele";
+	    eleDef.nextFcode = "editor_insert_caller_ele";
 	} else {
-	    eleDef["targetFcode"] = "editor_insertOpenTarget";
+	    // eleDef["targetFcode"] = "editor_insert_target_ele";
+	    eleDef.nextFcode = "editor_insert_next_ele";
 	}
 
 	this.editorEle(eleDef);
 	
     } // end of editor_insert_open
 
-    editor_insertOpenTarget() {
-	// this.subsection.insertTarget:
+    editor_insert_target_ele() {
+	// this.subsection.insertCaller:
 	//    Subsection instance that called this insertion
-	return this.subsection.insertTarget.indexItem().ele().drawn;
-    } // end of editor_insertOpenTarget
+	return this.subsection.insertCaller.indexItem().eleTarget();
+    } // end of editor_insert_target_ele
 
-    // a temporary Subsection was made at this.editor_insertMenu_direction()
+    // caller's ele
+    // if the request is insert before, it will be before this ele
+    editor_insert_caller_ele() {
+	return this.subsection.insertCaller.indexItem().ele().drawn;
+    } // end of editor_insert_caller_ele
+
+    // ele of next content of this.insertCaller
+    // if the request is insert after, it wiil be before this ele
+    editor_insert_next_ele() {
+	console.log("wc.js class SubsectionIndexItem editor_insert_next_ele()");
+//	let contentNext = this.insertCaller.content_next();
+//	if(contentNext == undefined){ return; }
+	//	return contentNext.ele().drawn;
+
+	// console.log("wc.js class SubsectionIndexItem editor_insert_next_ele() title:" + this.subsection.insertCaller.data().title);
+
+	console.log("wc.js class SubsectionIndexItem editor_insert_next_ele() this.subsection.insertCaller.eleNext():" + this.subsection.insertCaller.eleNext());
+	
+	return this.subsection.insertCaller.eleNext();
+	
+	
+	let subsectionNext = this.subsection.insertCaller.subsectionNext();
+
+	// console.log("wc.js class SubsectionIndexItem editor_insert_next_ele() title:" + subsectionNext.data().title);
+	// subsectionNext.data().title
+	
+	return subsectionNext.indexItem().ele().drawn;
+	
+    } // end of editor_insert_next_ele
+    
+    // a temporary Subsection was made at this.editor_insertMenu_to()
     // subsectionTemp -> data -> subsectionNew
     editor_insert_enter() {
 	// console.log("wc.js class SubsectionIndexItem editor_insert_enter");
 
-	// this.subsection.insertTarget = undefined;
-	// this.subsection.insert_direction = undefined;
-	let target_subsection = this.subsection.insertTarget;
-	let insert_direction = this.subsection.insert_direction;
+	// this.subsection.insertDirection = undefined;
+	let target_subsection = this.subsection.insertCaller;
+	let insertDirection = this.subsection.insertDirection;
 	let parentSubsection = target_subsection.parent();
 	// create new subsection
 	let childSubsection = parentSubsection.child_insert(target_subsection,
-							    insert_direction);
+							    insertDirection);
 
-	// a temporary Subsection made at this.editor_insertMenu_direction()
+	// a temporary Subsection made at this.editor_insertMenu_to()
 	let editor_ele = this.editorEle().drawn;
 	// let ele;
 
@@ -3161,12 +3374,10 @@ class SubsectionIndexItem {
     editor_subContent() {
 	// console.log("wc.js class SubsectionIndexItem editor_subContent()");
 	
-	// this.insertTarget : parent subsection
-	// let parent = this.insertTarget;
-	let parentSubsection = this.subsection.insertTarget;
+	let parentSubsection = this.subsection.insertCaller;
 	let childSubsection = parentSubsection.child_insert();
 
-	// a temporary Subsection made at this.editor_insertMenu_direction()
+	// a temporary Subsection made at this.editor_insertMenu_to()
 	let editor_ele = this.editorEle().drawn;
 
 	let href = editor_ele.querySelector(".inputHref").value;
@@ -3215,21 +3426,7 @@ class SubsectionIndexItem {
 
 } // end of class SubsectionIndexItem
 
-const htmlEditorSubmissionInsertTitle = `
-	<tr>
-	  <td colspan=2>New Subsection</td>
-	</tr>
-	<tr>
-	  <td>title</td>
-	  <td><input class="inputTitle"></td>
-	</tr>
-	<tr>
-	  <td>href</td>
-	  <td>
-	    <input class="inputHref" value="#">
-	  </td>
-	</tr>
-
+const htmlEditorSubmissionInsertMenu = `
 	<tr>
 	  <td></td>
 	  <td>
@@ -3244,7 +3441,55 @@ const htmlEditorSubmissionInsertTitle = `
 	    <input type="button" class="editor_cancel" value="Cancel">
 	  </td>
 	</tr>
-`; // end of const htmlEditorSubmissionInsertTitle
+`; // end of const htmlEditorSubmissionInsertMenu
+
+// const htmlEditorSubmissionInsertTitle2 = `
+// 	<tr>
+// 	  <td></td>
+// 	  <td>
+// 	    <input type="button" value="New Page" class="editor_newPage">
+// 	    <input type="button" value="Sub Content" class="editor_subContent">
+// 	  </td>
+// 	</tr>
+
+// 	<tr>
+// 	  <td></td><td>
+// 	    <input type="button" class="editor_enter" value="Enter"> 
+// 	    <input type="button" class="editor_cancel" value="Cancel">
+// 	  </td>
+// 	</tr>
+// `; // end of const htmlEditorSubmissionInsertTitle
+
+// const htmlEditorSubmissionInsertTitle = `
+// 	<tr>
+// 	  <td colspan=2>New Subsection</td>
+// 	</tr>
+// 	<tr>
+// 	  <td>title</td>
+// 	  <td><input class="inputTitle"></td>
+// 	</tr>
+// 	<tr>
+// 	  <td>href</td>
+// 	  <td>
+// 	    <input class="inputHref" value="#">
+// 	  </td>
+// 	</tr>
+
+// 	<tr>
+// 	  <td></td>
+// 	  <td>
+// 	    <input type="button" value="New Page" class="editor_newPage">
+// 	    <input type="button" value="Sub Content" class="editor_subContent">
+// 	  </td>
+// 	</tr>
+
+// 	<tr>
+// 	  <td></td><td>
+// 	    <input type="button" class="editor_enter" value="Enter"> 
+// 	    <input type="button" class="editor_cancel" value="Cancel">
+// 	  </td>
+// 	</tr>
+// `; // end of const htmlEditorSubmissionInsertTitle
 
 function href_in_use(page_json, href) {
 
@@ -3318,12 +3563,25 @@ class SubsectionContent {
 
     } // end of eleTarget
 
+    content_next() {
+	let contents = this.subsection.contents();
+
+	// console.log("wc.js class SubsectionContent content_next() contents.length:" + contents.length);
+	// console.log("wc.js class SubsectionContent content_next() this.index:" + this.index);
+	
+	if(contents.length <= this.index) { return; }
+	return contents[this.index+1];
+    } // end of content_next
+
+    // I consider to be discontinuing eleNext()
     eleNext() {
 	// console.log("wc.js class SubsectionContent eleNext()");
 	// Get next content .
-	let subsectionContentNext = this.subsection.contents()[this.index+1];
-	if(subsectionContentNext == undefined){ return; }
-	return subsectionContentNext.ele().drawn;
+	// let subsectionContentNext = this.subsection.contents()[this.index+1];
+	// if(subsectionContentNext == undefined){ return; }
+	let contentNext = this.content_next();
+	if(contentNext == undefined) { return; }
+	return contentNext.ele().drawn;
     } // end of eleNext
 
     eleDraw() {
@@ -3492,7 +3750,12 @@ class SubsectionContent {
 
     // This editor_optn is called by class Editor.editor_open()
     editor_open() {
-	// console.log("wc.js class SubsectionContent editor_open()");		
+	// console.log("wc.js class SubsectionContent editor_open()");
+
+	if(this.insertDirection) {
+	    // console.log("wc.js class SubsectionContent editor_open() insertDirection:", this.insertDirection);
+	    return this.editor_insert_open();
+	}
 
 	let html = htmlEditorBox;
 	html = html.replace("<!--placeHolder-->", htmlEditorSubsectionContent);
@@ -3533,9 +3796,9 @@ class SubsectionContent {
     
     editorDataSet(ele) {
 	// title,
-	ele.querySelector(".title").innerHTML = this.subsection.data()["title"];
+	// ele.querySelector(".title").innerHTML = this.subsection.data()["title"];
 	
-	ele.querySelector(".title").innerHTML = this.subsection.data()["title"];
+	// ele.querySelector(".title").innerHTML = this.subsection.data()["title"];
 
 	// type
 	if(this.data()["type"]){
@@ -3550,8 +3813,10 @@ class SubsectionContent {
     } // end of editorDataSet
     
     editor_insertTarget() {
-	if(this.insertTarget){
-	    return this.insertTarget.ele().drawn;
+	// if(this.insertTarget){}
+	if(this.insertCaller){
+	    // return this.insertTarget.ele().drawn;
+	    return this.insertCaller.ele().drawn;
 	}
 	return this.subsection.contentBlank().ele().drawn;
     } // end of editor_insertTarget
@@ -3575,7 +3840,7 @@ class SubsectionContent {
 	this.page.editor().editor_changed(true);
 	this.page.editor().editor_close(this);
 	
-	// a temporary SubsectionContent made at this.editor_insertMenu()
+	// a temporary SubsectionContent made at this.editor_insertMenu_to()
 	if(this.isBlank){
 	    this.subsection.contentInsert(this);
 	    // this.subsection.content_list(undefined);
@@ -3659,16 +3924,121 @@ class SubsectionContent {
 	
     } // end of editor_deleteExecute
 
-    editor_insertMenu() {
-	// console.log("class SubsectionContent editor_insertMenu()");
+    // editor_insertMenu() {
+    // 	// console.log("class SubsectionContent editor_insertMenu()");
 	
-	let contentNew =  this.subsection.contentBlank();
-	contentNew.insertTarget = this;
+    // 	let contentNew =  this.subsection.contentBlank();
+    // 	contentNew.insertTarget = this;
 
+    // 	// This calls contentNew.editor_open()
+    // 	this.page.editor().editor_open(contentNew);
+
+    // }
+    // end of editor_insertMenu
+    
+    editor_insertMenuBefore() {
+	// console.log("wc.js class SubsectionContent editor_insertMenuBefore()");
+
+	this.editor_insertMenu_to("before");
+
+    } // end of editor_insertMenuBefore
+    
+    editor_insertMenuAfter() {
+	// console.log("wc.js SubsectionContent editor_insertMenuAfter()");
+
+	this.editor_insertMenu_to("after");
+
+    } // end of editor_insertMenuAfter
+    
+    editor_insertMenu_to(insertDirection) {
+	// insertDirection: "before" / "after"
+	
+	// close the editor menu that requested this insert
+	this.page.editor().editor_close(this);
+
+	let contentNew =  this.subsection.contentBlank();
+	contentNew.insertCaller = this;
+	contentNew.insertDirection = insertDirection;
+	
 	// This calls contentNew.editor_open()
 	this.page.editor().editor_open(contentNew);
 
-    } // end of editor_insertMenu
+    } // end of editor_insertMenu_to
+    
+    editor_insert_open() {
+
+	let html = htmlEditorBox;
+	html = html.replace("<!--placeHolder-->", htmlEditorSubsectionContent);
+	html = html.replace("<!--placeHolder-->", htmlEditorEnter);
+	html = html.replace("<!--placeHolder-->", htmlEditorMove);
+
+	let ele = this.page.editor().ele_setup(this, html);
+	
+	const eleDef = {
+	    "ele" : ele,
+	    // "targetFcode" : "editor_insertOpenTarget",
+	    "targetFcode" : "editor_insert_target_ele",
+	};
+
+	// console.log("wc.js SubsectionContent editor_insert_open() this.insertDirection:" + this.insertDirection);
+
+	if(this.insertDirection == "before") {
+	    // console.log("wc.js SubsectionContent editor_insert_open()");
+	    
+	    eleDef.nextFcode = "editor_insert_caller_ele";
+	    // eleDef.targetFcode = "editor_insertOpenTarget";
+	} else {
+	    eleDef.nextFcode = "editor_insert_next_ele";
+	}
+ 	
+	this.editorEle(eleDef);
+
+    } // end of editor_insert_open
+
+    // parent ele where put new subsctionContent into
+    editor_insert_target_ele() {
+	return this.insertCaller.eleTarget();
+    } // end of editor_insert_target_ele
+
+    // caller's ele
+    // if the request is insert before, it will be before this ele
+    editor_insert_caller_ele() {
+	return this.insertCaller.ele().drawn;
+    } // end of editor_insert_caller_ele
+    
+    // ele of next content of this.insertCaller
+    // if the request is insert after, it wiil be before this ele
+    editor_insert_next_ele() {
+	// console.log("wc.js SubsectionContent editor_insert_next_ele()");
+
+	let contentNext = this.insertCaller.content_next();
+	if(contentNext == undefined){ return; }
+
+	// console.log("wc.js SubsectionContent editor_insert_next_ele() contentNext.ele().drawn:" + contentNext.ele().drawn);
+	
+	return contentNext.ele().drawn;
+    } // end of editor_insert_next_ele
+    
+    // editor_insertOpenTarget() {
+    // 	//    Subsection instance that called this insertion
+    // 	//	return this.subsection.insertCaller.indexItem().ele().drawn;
+
+    // 	console.log("wc.js SubsectionContent editor_insertOpenTarget()");
+	
+    // 	return this.insertCaller.ele().drawn;
+	
+    // }
+    // end of editor_insertOpenTarget
+
+    editor_insert_next() {
+	// this.insertCaller
+
+	this.insertCaller.eleNext();
+	if(eleNext == undefined) { return undefined; }
+
+	
+	
+    } // end of editor_insert_next
     
     editor_moveMenu(event) {
 
@@ -3742,6 +4112,12 @@ class SubsectionContent {
 	this.editorEle({"ele" : undefined});
     } // end of editor_close
 
+    editor_textareaBigger(event) {
+	let ele = this.editorEle().drawn.querySelector(
+	    ".editor_subsection_content");
+	ele.classList.add("textareaBig");
+    }
+    
 } // end of class SubsectionContent
 
 function eleVisibleSet (eleArg, req) {
@@ -4430,5 +4806,1596 @@ function test02() {
     console.log("wc.js function test02 str: " + str);
     
 } // end of function test02
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* Blox */
+
+// common class for all class Blox and class BloxSub
+class BloxBase {
+    // console.log("wc.js class BloxBase");
+
+    bxCenter() {
+	if(0 < arguments.length){
+	    this.bxCenterObj = arguments[0];
+	}
+	if(this.bxCenterObj == undefined){
+	    if(this.parent()){
+		this.bxCenterObj = this.parent().bxCenter();
+	    }
+	}
+	return this.bxCenterObj;
+    } // end of bxCenter
+
+    // parent is a class instance just above this instalce
+    parent() {
+	// console.log("wc.js class BloxBase parent()");
+	if(0 < arguments.length) { this.parentObj = arguments[0]; }
+	return this.parentObj;
+    } // end of parent
+
+    // very top class
+    bxTop() {
+	if(this.parent()){ return this.parent().bxTop(); }
+	return this;
+    } // end of bxTop
+
+    // bxMain() returns a main blox instance .
+    // main blox is declared with "extends Blox"
+    // sub bloxes are child of a main blox and declared with "extends BloxSub"
+    //
+    // if bxMain() is called on sub bloxes, it will find its main blox and
+    // return it.
+    //
+    bxMain() {
+	// console.log("wc.js class BloxBase bxMain()");
+
+	// DBG
+	let dbg = false;
+	if(this.constructor.name == "Page_bxElement"){ dbg = true; }
+
+	if(dbg){
+	    // console.log("wc.js class BloxBase bxMain() dbg: " + dbg);
+	    // console.log("wc.js class BloxBase bxMain() constructor.name: " + this.constructor.name);
+	    // console.log("wc.js class BloxBase bxMain() this.thisIsBloxMain: " + this.thisIsBloxMain);
+	}
+	
+	// this.thisIsBloxMain method exists: it is BloxMain
+	if(this.thisIsBloxMain){ return this; }
+	if(this.parent()){
+	    return this.parent().bxMain();
+	} else {
+
+	    if(dbg){
+		console.log("wc.js class BloxBase bxMain() no parent return this" );
+	    }
+	    
+	    return this;
+	}
+    } // end of bxMain
+
+    // call BxMain aboube BxMain of this
+    parentBxMain() {
+	return this.bxMain().parent().bxMain();
+    } // end of parentBxMain
+
+    // key() {
+    // 	if(0 < arguments.length){ this.keyObj = arguments[0]; }
+    // 	return this.keyObj;
+    // } // end of key
+    
+    keyDelimiter = "._.";
+    classDelimiter = ".__.";
+
+
+    // DBG
+    dbgCounter() {
+
+	if(this.dbgCounterObj == undefined){ this.dbgCounterObj = 0; }
+	
+	this.dbgCounterObj += 1;
+	return this.dbgCounterObj;
+    } // end of dbgCounter
+
+    bloxAddress() {
+	// console.log("wc.js class BloxBase bloxAddress()");
+
+	if(! this.thisIsBloxMain){
+	    return this.bxMain().bloxAddress();
+	}
+
+	if(this.bloxAddressObj == undefined){
+	    let address = "";
+	    // Since "this" is BloxMain,
+	    // this.parent() is of the parent BloxMain.
+	    if(this.parent()){
+		address += this.parent().bloxAddress() + this.classDelimiter;
+	    }
+	    address += this.constructor.name + this.keyDelimiter + this.key();
+	    this.bloxAddressObj	= address;
+	}
+
+	return this.bloxAddressObj;
+
+    } // end of bloxAddress
+
+    bloxByAddress() {
+
+	let blox;
+	let addresses = arguments[0].split(this.classDelimiter);
+	for(const address of addresses){
+	    const [className, key] = address.split(this.keyDelimiter);
+
+	    // only the first time
+	    if(blox == undefined){
+		blox = this.bxTop();
+		if(blox.constructor.name != className){ return; }
+		continue;
+	    }
+	    
+	    // CAUTION: Do not use bloxChildNew,
+	    // it might create bloxes and use memory
+	    // by client request with address given
+	    // that might cause problems
+	    blox = blox.bloxChild(className, key);
+	    
+	    if(blox == undefined){ return; }
+	}
+	
+	return blox;
+	
+    } // end of bloxByAddress
+
+    bloxChild(className, key, bloxNew) {
+	// this.bloxChildObj
+
+	if(this.bloxChildObj == undefined){
+	    this.bloxChildObj = {};
+	}
+
+	if(arguments.length == 0){ return this.bloxChildObj; }
+
+	if(className == undefined){ return; }
+
+	if(arguments.length == 1){ return this.bloxChildObj[className]; }
+	
+	if(key == undefined){ return; }
+	
+	if(this.bloxChildObj[className] == undefined){
+	    if(! bloxNew){ return; }
+	    this.bloxChildObj[className] = {};
+	}
+
+	let classChildren = this.bloxChildObj[className];
+
+	if(arguments.length == 2){ return classChildren[key]; }
+	
+	if(bloxNew == undefined){
+	    delete classChildren[key];
+	    return;
+	}
+	
+	classChildren[key] = bloxNew;
+
+	return classChildren[key];
+	
+    } // end of bloxChild
+
+    bloxNew(className, key) {
+	// console.log("wc.js class BloxBase bloxNew()");
+
+	let blox = this.bloxChild(...arguments);
+	if(blox){ return blox; }
+
+	// console.log("wc.js class BloxBase bloxNew() this.bxCenter():" + this.bxCenter().constructor.name);
+	
+	// (parent, className, key)
+	// blox = bloxNew(this, ...arguments);
+	blox = this.bxCenter().classNew(this, ...arguments);
+	
+	if(blox.key){ blox.key(key); }
+	blox.parent(this);
+
+	return this.bloxChild(...arguments, blox);
+
+    } // end of bloxNew
+
+    // classNeme: parent className + sub className
+    bloxSubNew(className, key) {
+	// console.log("wc.js class BloxBase bloxSubNew()");
+	let classNameSub =  this.bxMain().constructor.name + className;
+	return this.bloxNew(classNameSub, key);
+    } // end of bloxSubNew
+
+    // bloxChildNew(className, key) {
+    // 	return bloxNew(this, className, key);
+    // } // end of bloxChildNew
+
+    // // create an instance of something like:
+    // // class TempSub extends BloxSub {}
+    // // bloxSubNew(parent, subName) {}
+    // bloxSubNew(subName) {
+    // 	// console.log("wc.js class BloxBase bloxSubNew");
+    // 	let className = this.constructor.name + subName;
+    // 	let newCode = new Function(
+    // 	    "return new " + className + "(...arguments);");
+    // 	return newCode(this, ...arguments);
+	
+    // } // end of bloxSubNew
+    
+    // bloxSubNew(subName, key) {
+    // 	// console.log("wc.js class BloxBase bloxSubNew");
+    // 	let className = this.constructor.name + subName;
+    // 	let newCode = new Function(
+    // 	    "return new " + className + "(...arguments);");
+    // 	return newCode(this, ...arguments);
+	
+    // } // end of bloxSubNew
+    
+} // end of class BloxBase
+
+class Blox extends BloxBase {
+    // console.log("class Blox");
+
+    // keys shows what ele names and its order
+    // constructor(parent) {
+    
+    // (parentBlox, className, key)
+    constructor() {
+	// console.log("class Blox acguments.length: " + arguments.length);
+	
+	super();
+	
+	// super(...arguments);
+	// super does not allow to use this
+
+	// this.keys = [];
+	// this.eles = {};
+	// this.atts = {};
+    } // end of constructor
+
+    // This is to tell that this is of BloxMain
+    thisIsBloxMain(){}
+
+    key() {
+	if(0 < arguments.length){ this.keyObj = arguments[0]; }
+	return this.keyObj;
+    } // end of key
+
+    data() {
+	if(0 < arguments.length) {
+	    this.dataObj = arguments[0];
+	    return this.dataObj;
+	}
+	if(this.dataObj){ return this.dataObj; }
+
+	return this.data(this.parentBxMain().dataChild(this));
+	
+    } // end of data
+
+    element() {
+	// console.log("class Blox element()");
+	// return this.bloxNew("Element", "0"); //
+	return this.bloxSubNew("Element", "0"); //
+	
+    } // end of element
+
+    editor() {
+	// console.log("class Blox editor()");
+	return this.bloxSubNew("Editor", "0"); //");
+    } // end of editor
+
+} // end of class Blox
+
+class BloxSub extends BloxBase {
+    // console.log("wc.js class BloxSub");
+
+} // end of class BloxSub
+
+// class BloxAddress2 extends BloxSub {
+//     // console.log("wc.js class TempSub");
+    
+// } // end of class BloxAddress2
+
+class BloxElement extends BloxSub {
+    // console.log("wc.js class BloxElement");
+
+    constructor() {
+	// console.log("wc.js class BloxElement constructor()");
+	super(...arguments);
+    } // end of constructor
+
+    target() {
+	if(0 < arguments.length) {
+	    this.targetObj = arguments[0];
+	    return this.targetObj;
+	}
+	if(this.targetObj){ return this.targetObj; }
+
+	// Case this.targetObj in not defined
+	return this.targetAskParent();
+	
+    } // end of target
+
+    targetAskParent() {
+	// console.log("wc.js class BloxElement targetAskParent()");
+	return this.parentBxMain().element().targetChild(this.bxMain());
+    } // end of targetAskParent
+
+    // useage
+    // this.ele(ele); // draw ele
+    // this.ele(undefined); // remove ele
+    // ele = this.ele(); // return this.eleObj
+    ele() {
+	// console.log("wc.js class Blox ele()");
+
+	if(arguments.length == 0) { return this.eleObj; }
+	
+	let ele = arguments[0];
+	
+	// delete current ele
+	if(this.eleObj){
+	    let eleDrawn = this.eleObj;
+	    if(eleDrawn.parentNode.contains(eleDrawn)){
+		eleDrawn.parentNode.removeChild(eleDrawn);
+	    }
+	    delete this.eleObj;
+	}
+
+	// nothing to draw
+	if(! ele){ return; }
+
+	ele.setAttribute("data-bxAddress", this.bloxAddress());
+	// console.log("class Blox ele() bxAddress:" + ele.getAttribute("data-bxAddress"));
+	// console.log("class Blox ele() bxAddress set:" + ele.getAttribute("data-bxAddress"));
+
+	const targetNext = this.targetNext();
+	if(targetNext) {
+	    targetNext.parentNode.insertBefore(ele, targetNext);
+	} else  {
+	    this.target().appendChild(ele);
+	}
+
+	this.eleObj = ele;
+
+	// DBG
+	// if(dbg){
+	//     // console.log("wc.js class Blox ele() ele:" + this.eleObj);
+	// }
+	
+	return this.eleObj;
+    } // end of ele
+
+    targetNext() {
+	if(0 < arguments.length){ this.targetNextObj = arguments[0]; }
+	return this.targetNextObj;
+    } // end of targetNext
+
+    // Convert html to ele nodes
+    // If there are plural element on top level,
+    // append those to one div element
+    // to make top level elemant always one .
+    eleFromHtml() {
+	
+	let ele = document.createElement('div');
+	
+	let html = arguments[0];
+	if(html == undefined){ return ele; }
+
+	ele.innerHTML = html.trim();
+	if(ele.childNodes.length == 1){
+	    ele = ele.childNodes[0];
+	}
+
+	return ele;
+
+    } // end of eleFromHtml
+
+    // this.eleVisibleSet (eleArg, req);
+    // req: {'class0', 1, 'class1': 0};
+    // class0: class name;
+    // 1: show, 0: off;
+    eleVisibleSet(eleArg, req) {
+    if( ! eleArg){ return;}
+	for(const key0 in req){
+	    let elePart = eleByClass(eleArg, key0);
+	    if( ! elePart){ continue;}
+	    if(req[key0]){
+		elePart.classList.remove('invisible');
+	    }else{
+		elePart.classList.add('invisible');
+	    }
+	}
+
+    } // end of eleVisibleSet
+    
+} // end of class BloxElement
+
+class Temp_bx extends Blox {
+
+    // name() {
+    // 	if(0 < arguments.length){
+    // 	    this.nameObj = arguments[0];
+    // 	    return this.nameObj;
+    // 	}
+    // 	if(this.nameObj == undefined){
+    // 	    this.nameObj = "initial value";
+    // 	}
+    // 	return this.nameObj;
+    // } // end of name
+
+    children2() {
+	return this.bloxNew("Children2_bx", "0")
+    } // end of children2
+    
+    dataChild(child) {
+	// child.index()
+	// child.constructor.name
+	
+    } // end of dataChild
+
+} // end of class Temp_bx
+
+class Temp_bxElement extends BloxElement {
+
+    draw() {
+	let ele;
+
+	// let ele = document.createElement('div');
+	// ele.appendChild(document.createTextNode("Temp_bx"));
+	
+	this.ele(ele);
+
+    } // end of draw
+
+    targetNext() {
+    } // end of targetNext
+    
+    targetChild(child) {
+	// child.constructor.name
+	
+	// if( [""].includes(child.constructor.name)){
+	//     return this.ele();
+	// }
+
+	
+    } // end of targetChild
+    
+} // end of class Temp_bxElement
+
+class TempSub extends BloxSub {
+    // console.log("wc.js class TempSub");
+
+    // constructor() {
+    // } // end of constructor
+    
+} // end of class TempSub
+
+class BloxCenter {
+
+    // let bloxCenter = new BloxCenter();
+    // let page_bx = bloxCenter.top("Page_bx");
+    // top() {}
+    bxTop() {
+	if(0 < arguments.length){
+	    const className = arguments[0];
+	    if(className == undefined){ return; }
+	    const key = "0";
+	    this.topObject = this.classNew(undefined, className, key)
+	    this.topObject.bxCenter(this);
+	    this.topObject.key(key);
+	}
+	return this.topObject;
+    } // end of top
+
+    // (parentBlox, className, key)
+    classNew() {
+	let className = arguments[1];
+	const newCode =
+	      new Function("return new " + className + "(...arguments);");
+	let blox = newCode(...arguments);
+	return blox;
+    } // end of classNew
+    
+} // end of class BloxCenter
+
+class EditorElement extends BloxElement {
+    // console.log("wc.js class EditorElement");
+
+    // editor() {
+    // 	if(0 < arguments.length){
+    // 	    this.editorObj = arguments[0];
+    // 	    return this.editorObj;
+    // 	}
+    // 	if(this.editorObj == undefined){
+    // 	    this.editorObj = "initial value";
+    // 	}
+    // 	return this.editorObj;
+    // } // end of editor
+    
+
+    setEvent(objThat, ele) {
+	// console.log("wc.js class EditorElement setEvent()");
+
+	// class Editor {
+	// let objEditor = this.bxTop().editor();
+	let objEditor = this.bxTop().pageEditor();
+
+	// console.log("wc.js class EditorElement setEvent() this.bxTop(): " + this.bxTop().constructor.name);
+	// console.log("wc.js class EditorElement setEvent() objThat: " + objThat.constructor.name);
+	// console.log("wc.js class EditorElement setEvent() objEditor: " + objEditor.constructor.name);
+
+	for(const name of this.menuItem){
+	    let functionName = "editor"+name;
+	    // const eleSw = ele.querySelector(".editor"+name);
+	    const eleSw = ele.querySelector("."+functionName);
+	    
+	    if(eleSw == undefined){ continue;}
+
+	    // console.log("wc.js class EditorElement setEvent() eleSw: " + eleSw);
+	    
+	    let obj;
+	    let functionMenu = this.functionMenu(objThat, functionName);
+	    obj = objThat;
+	    if(! functionMenu){
+		functionMenu = this.functionMenu(objEditor, functionName);
+		obj = objEditor;
+	    }
+	    if(! functionMenu){
+		continue;
+	    }
+
+	    // DBG
+	    // console.log("wc.js class EditorElement setEvent() functionMenu: " + functionMenu);
+
+
+	    
+	    eleSw.addEventListener('click', function(event){
+		functionMenu.apply(obj, [event]);
+	    } );	
+	}
+
+    } // end of setEvent
+
+    functionMenu(obj, name) {
+	console.log("wc.js class EditorElement functionMenu");
+	// const fcode = new Function("return this.editor"+name+';');
+	const fcode = new Function("return this."+name+";");
+
+	// console.log("wc.js class EditorElement functionMenu name: " + name);
+	// console.log("wc.js class EditorElement functionMenu obj: " + obj.constructor.name);
+	// console.log("wc.js class EditorElement functionMenu fcode: " + fcode);
+
+	
+	return fcode.apply(obj);
+    } // end of functionMenu
+
+    menuItem = [
+	'Cancel', 'Enter', "Movemenu" // "Insertmenu", 
+	, 'Insertmenubefore', "Insertmenuafter"
+	, 'Newpage', 'Subcontent'
+	, 'Delete'
+	, 'Deleteexecute'
+	, 'Deletecancel'
+	, 'Eventindividual'
+
+    ];
+
+    htmlPhReplace(html, htmlApply) {
+	return html.replace("<!--placeHolder-->", htmlApply);
+    } // end of htmlPhReplace
+
+    htmlEditorBox = (`
+<table  class="editTable">
+<!--placeHolder-->
+</table>
+`); // end of htmlEditorBox
+    
+    htmlEditorTitleHref = (`
+	<tr>
+	  <td>title</td>
+	  <td><input class="inputTitle"></td>
+	</tr>
+	<tr>
+	  <td>href</td>
+	  <td>
+	    <input class="inputHref" value="#">
+	  </td>
+	</tr>
+<!--placeHolder-->
+`); // end of htmlEditorTitleHref
+    
+    htmlEditorEnter = (`
+	<tr>
+	  <td></td>
+      <td>
+	    <input type="button" class="editor_enter" value="Enter"> 
+	    <input type="button" class="editorCancel" value="Cancel">
+	    <input type="button" value="New Page" class="editor_newPage invisible">
+	  </td>
+	</tr>
+<!--placeHolder-->
+`); // end of htmlEditorEnter
+    
+    htmlEditorMove = (`
+	<tr>
+	  <td></td>
+	  <td><hr class="editor_hr"></td>
+	</tr>
+
+	<tr><td></td><td><iframe class="invisible iframe0"></iframe></td></tr>
+      
+	<tr>
+	  <td></td>
+	  <td>
+            <input type="button" class="editor_moveMenu" value="Move"> 
+	    <input type="button" class="editor_delete" value="Delete">
+	    <div class="editor_deleteConfirm invisible testColor">
+	      <div class="editDeleteMessage"></div>
+	      Delete , sure ?
+	      <input type="button" class="editor_deleteExecute" value="Execute">
+	      <input type="button" class="editor_deleteCancel" value="Cancel">
+	    </div>
+            Insert 
+            <input type="button" class="editor_insertMenuBefore" value="Before">
+            <input type="button" class="editor_insertMenuAfter" value="After">
+          </td>
+	</tr>
+<!--placeHolder-->
+`); // end of 
+
+// 	= (`
+// `); // end of 
+
+// 	= (`
+// `); // end of 
+
+// 	= (`
+// `); // end of 
+
+// 	= (`
+// `); // end of 
+
+// 	= (`
+// `); // end of 
+
+} // end of class EditorElement
+
+class Page_bx extends Blox {
+    // console.log("class Page_bx");
+
+    constructor() {
+	super();
+
+	// this.editorInit();
+	
+    } // end of constructor
+
+    dataChild(child) {
+	// console.log("class Page_bx dataChild()");
+	
+	if(child.constructor.name == "Navi_bx") {
+	    return this.data()["data"]["navi"]
+	}
+	
+	if(child.constructor.name == "Index_bx") {
+	    return this.data().data.subsection.data;
+	}
+	
+    } // end of dataChild
+
+    // This is special, it differs from editor() in class Blox as a bloxSubNew
+    // editor() {}
+    pageEditor() {
+	return this.bloxNew("PageEditor_bx", "0");
+    } // end of editor
+
+    navi() {
+	return this.bloxNew("Navi_bx", "0")
+    } // end of navi
+
+    index() {
+	return this.bloxNew("Index_bx", "0")
+    } // end of index
+
+    // {data: page_json, target: targetEle}
+    initAndDraw() {
+
+	let harg = arguments[0];
+	if(! harg){ return; }
+	this.data(harg.data);
+
+	this.element().target(harg.target);
+	this.element().draw();
+
+	// let this.editor() know page top element
+	// this.editor().elePageTop(this.element().ele());
+	this.pageEditor().elePageTop(this.element().ele());
+
+	// set last item a key to start editor
+	const items = this.navi().items();
+	if(items.length == 0) { return; }
+	const itemLast = items[items.length -1];
+	// this.editor().eleEditorOn(itemLast.element().ele());
+	this.pageEditor().eleEditorOn(itemLast.element().ele());
+	
+	// after draw
+	// this.editor().modeOff();
+	this.pageEditor().modeOff();
+	
+    } // end of initAndDraw
+    
+} // end of class Page_bx
+
+//class Page_bxEditor {}
+
+class Page_bxElement extends BloxElement {
+    // console.log("wc.js class Page_bxElement");
+
+    draw() {
+	let ele = document.createElement('div');
+	// ele.appendChild(document.createTextNode("Page_bx"));
+
+	const eleEditorTarget = document.createElement('div');
+	// eleEditorTarget.classList.add("editor");
+	ele.appendChild(eleEditorTarget);
+	//this.editor().eleTarget(eleEditorTarget);
+	// this.blox().editor().element().target(eleEditorTarget);
+
+	// this.bxMain().editor().element().target(eleEditorTarget);
+	this.bxMain().pageEditor().element().target(eleEditorTarget);
+	
+	this.ele(ele);
+
+
+	// this.eleTarget().appendChild(document.createTextNode("Page_bx"));
+	
+
+	// Does not draw editor
+	// because it is not necessary to draw at this point.
+	// this.bxMain().pageEditor();
+	// this.blox().editor().element().draw();
+	
+	this.bxMain().navi().element().draw();
+	this.bxMain().index().element().draw();
+
+
+    } // end of draw
+
+    // targetNext() {
+    // } // end of targetNext
+    
+    targetChild(child) {
+	// child.blox().constructor.name
+
+
+	// child.constructor.name	
+	
+	// if( ["Navi_bx", "Index_bx"].includes(child.blox().constructor.name)){
+	if( ["Navi_bx", "Index_bx"].includes(child.constructor.name)){
+	    return this.ele();
+	}
+	
+	
+    } // end of targetChild
+    
+} // end of class Page_bxElement
+
+class Navi_bx extends Blox {
+    // console.log("class Navi_bx");
+    
+    // NaviItem_bx
+    items() {
+	// console.log("class Navi_bx items()");
+
+	// let children = this.bloxChild("NaviItem_bx");
+	// if(children){ return children; }
+	
+
+	let items = [];
+	for(let index in this.data()) {
+	    // let name = data[index][0];
+	    // let href = data[index][1];
+	    let item = this.bloxNew("NaviItem_bx", index);
+	    items.push(item);
+	}
+
+	return items;
+	// return this.items(items);
+	// return this.bloxChild("NaviItem_bx");
+
+    } // end of items
+
+    dataChild(child) {
+	// console.log("class Navi_bx dataChild()");
+	let key = child.bxMain().key();
+	if(this.data().length <= key) { return; }
+	return this.data()[key];
+    } // end of dataChild
+
+} // end of class Navi_bx
+    
+class Navi_bxElement extends BloxElement {
+    // console.log("class Navi_bxElement");
+
+    draw() {
+	// console.log("class Navi_bxElement draw()");
+
+	// NaviItem tareget
+	let ele = document.createElement('div');
+	this.ele(ele);
+
+	let delimiterDraw = false;
+	for(const item of this.bxMain().items()){
+	    if(delimiterDraw) {
+		item.element().target().appendChild(
+		    document.createTextNode(" > "));
+	    } else { delimiterDraw = true; }
+	    item.element().draw();
+	}
+	
+    } // end of draw
+
+    targetNext() {
+	// console.log("class Navi_bxElement targetNext()");
+	// this.blox().parent().element().targetChild(this);
+
+	// this.bxMain().element().targetChild(this);
+    } // end of targetNext
+    
+    targetChild(child) {
+
+	// if(child.blox().constructor.name == "NaviItem_bx"){
+	if(child.constructor.name == "NaviItem_bx"){
+	    return this.ele();
+	}
+	
+	// child.constructor.name
+	
+	// if( [""].includes(child.constructor.name)){
+	//     return this.ele();
+	// }
+
+	
+    } // end of targetChild
+    
+} // end of class Navi_bxElement
+
+class NaviItem_bx extends Blox {
+    // console.log("class NaviItem_bx");
+    
+    eleDraw() {
+	
+	this.ele(naviItem_bx_ele(this));
+
+    } // end of eleDraw
+    
+} // end of class NaviItem_bx
+
+class NaviItem_bxElement extends BloxElement {
+
+    draw() {
+	this.ele(naviItem_bx_ele(this.bxMain()));
+    } // end of draw
+
+    targetNext() {
+    } // end of targetNext
+    
+    targetChild(child) {
+	// child.constructor.name
+	
+	// if( [""].includes(child.constructor.name)){
+	//     return this.ele();
+	// }
+
+	
+    } // end of targetChild
+    
+} // end of class NaviItem_bxElement
+
+function naviItem_bx_ele(that) {
+
+    let ele = document.createElement('span');
+    ele.setAttribute('class', "naviItem");
+    // ele.setAttribute('data-json_id', that.index());
+    let eleA = document.createElement('a');
+    eleA.setAttribute('class', "naviAnchor");
+    let href = that.data()[1];
+    if(
+	href != undefined
+	    &&
+	    0 < href.length
+    ){
+	eleA.setAttribute('href', href);
+    }
+    
+    let name = document.createTextNode(that.data()[0]);
+    eleA.appendChild(name);
+    ele.appendChild(eleA);
+
+    return ele;
+    
+} // end of function naviItem_bx_ele
+    
+class Index_bx extends Blox {
+    // console.log("class Index_bx");
+    
+    dataChild(child) {
+	// child.index()
+	// child.constructor.name
+
+	if(child.constructor.name == "IndexItem_bx"){
+	    return this.data()[child.bxMain().key()];
+	}
+	
+    } // end of dataChild
+
+    indexItems() {
+	// console.log("class Index_bx IndexItems");
+	if(0 < arguments.length) {
+	    this.IndexItemsObj = arguments[0];
+	    return this.IndexItemsObj;
+	}
+	if(this.IndexItemsObj == undefined) {
+	    let items = [];
+	    for(let key of Object.keys(this.data())){
+		let item = this.bloxNew("IndexItem_bx", key);
+		items.push(item);
+	    }
+	    this.IndexItemsObj = items;
+	}
+	return this.IndexItemsObj;
+    } // end of indexItems
+
+    indexItemNext() {
+	const indexItemArg = arguments[0].bxMain();
+	let matched = false;
+	for(const indexItem of this.indexItems()){
+	    // next one after matched becomes true
+	    if(matched){ return indexItem; }
+	    if(indexItem.key() == indexItemArg.key()){
+		let matched = true;
+	    }
+	}
+    } // end of indexItemNext
+
+    eleTargetChild(child) {
+	// child.constructor.name
+	
+	if(child.constructor.name == "IndexItem_bx"){
+	    return this.eleTarget();
+	}
+
+    } // end of eleTargetChild
+    
+} // end of class Index_bx
+
+class Index_bxElement extends BloxElement {
+    // console.log("wc.js class Index_bxElement");
+
+    draw() {
+
+	const ele = document.createElement("ul");
+	this.ele(ele);
+
+	for(const index of this.bxMain().indexItems()) {
+	    index.element().draw();
+	}
+	
+    } // end of draw
+
+    targetNext() {
+    } // end of targetNext
+    
+    targetChild(child) {
+	// child.constructor.name
+	
+	if( ["IndexItem_bx"].includes(child.constructor.name)){
+	    return this.ele();
+	}
+
+	
+    } // end of targetChild
+    
+} // end of class Index_bxElement
+
+class IndexItem_bx extends Blox {
+    
+    // dataChild(child) {
+    // 	// child.index()
+    // 	// child.constructor.name
+    // } // end of dataChild
+
+} // end of class IndexItem_bx
+
+class IndexItem_bxElement extends BloxElement {
+    // console.log("class IndexItem_bxElement");
+
+    draw() {
+	// console.log("class IndexItem_bxElement draw()");
+	let ele = document.createElement("li");
+	ele.appendChild(document.createTextNode(this.bxMain().data().title));
+	this.ele(ele);
+    } // end of draw
+
+    targetNext() {
+    } // end of targetNext
+    
+    targetChild(child) {
+	// child.constructor.name
+	
+	// if( [""].includes(child.constructor.name)){
+	//     return this.ele();
+	// }
+
+	
+    } // end of targetChild
+    
+} // end of class IndexItem_bxElement
+
+// class IndexItem_bxEditor extends BloxElement {}
+class IndexItem_bxEditor extends EditorElement {
+    // console.log("wc.js class IndexItem_bxEditor");
+
+    // overwrite class BloxElement target(){}
+    target() {
+	// console.log("wc.js class IndexItem_bxEditor target()");
+	
+	return this.bxMain().element().ele();
+	
+    } // end of target
+
+    htmlEditorMenu() {
+	
+	let html = this.htmlEditorBox;
+	html = this.htmlPhReplace(html, this.htmlEditorTitleHref);
+	html = this.htmlPhReplace(html, this.htmlEditorEnter);
+	html = this.htmlPhReplace(html, this.htmlEditorMove);
+
+	return html;
+
+    } // end of htmlEditorMenu
+    
+    draw() {
+	// console.log("wc.js class IndexItem_bxEditor draw()");
+
+	let ele = this.eleFromHtml(this.htmlEditorMenu());
+
+	// DBG
+	this.setEvent(this, ele);
+
+	
+	// let ele = this.eleFromHtml("");
+
+	// DBG
+	// this.targetNext();
+	
+	this.ele(ele);
+
+    } // end of draw
+
+    targetNext() {
+	// console.log("wc.js class IndexItem_bxEditor targetNext()");
+
+	// this.bxMain().parent().bxMain().indexItemNext(this)
+	this.parentBxMain().indexItemNext(this)
+
+
+    } // end of targetNext
+    
+    targetChild(child) {
+	// child.constructor.name
+	
+	// if( [""].includes(child.constructor.name)){
+	//     return this.ele();
+	// }
+
+	
+    } // end of targetChild
+
+    editorCancel() {
+	console.log("wc.js class IndexItem_bxEditor editorCancel()");
+
+    } // end of editorCancel
+    
+    
+} // end of class IndexItem_bxEditor
+
+class PageEditor_bx extends Blox {
+    // console.log("class PageEditor_bx");
+
+    elePageTop() {
+	if(0 < arguments.length){ this.elePageTopObj = arguments[0]; }
+	return this.elePageTopObj;
+    } // end of elePageTop
+    
+    eleEditorOn() {
+	if(0 < arguments.length){ this.eleEditorOnObj = arguments[0]; }
+	return this.eleEditorOnObj;
+    } // end of eleEditorOn
+    
+    modeOff() {
+	// console.log("class PageEditor_bx modeOff()");
+
+	if(this.openFuncInstance()){
+	    document.body.removeEventListener(
+		'mouseup', this.openFuncInstance());
+	    this.openFuncInstance(undefined);
+	}
+
+	// Set eventlistener edit modeOn on the last item of navi
+	// let naviItems = this.parent().navi().items();
+	// let lastItemEle = naviItems[naviItems.length-1].ele();
+	// lastItemEle.addEventListener("mouseup", modeOnF);
+	
+	const modeOnF = this.modeOn.bind(this);
+	this.eleEditorOn().addEventListener("mouseup", modeOnF);
+	this.modeOnFuncInstance(modeOnF);
+	
+	// hrefEventAdd(this.parent().eleTarget());
+	hrefEventAdd(this.elePageTop());
+
+    } // end of modeOff
+
+    modeOn(event) {
+	console.log("class PageEditor_bx modeOn()");
+
+	// this.eleDraw();
+	this.element().draw();
+
+	const openF = this.open.bind(this);
+	document.body.addEventListener('mouseup', openF);
+	this.openFuncInstance(openF);
+
+	// let naviItems = this.parent().navi().items();
+	// let lastItemEle = naviItems[naviItems.length-1].ele();
+
+	const modeOnF = this.modeOnFuncInstance();
+	// lastItemEle.removeEventListener("mouseup", modeOnF);
+	this.eleEditorOn().removeEventListener("mouseup", modeOnF);
+	this.modeOnFuncInstance(undefined);
+	
+	// hrefEventRemove(this.parent().eleTarget());
+	hrefEventRemove(this.elePageTop());
+	
+	event.stopPropagation(); // prevent editorOpen;
+	
+    } // end of modeOn
+
+    // memory the function instance that was set to the eventlistener
+    // that is needed to remove the eventlistener
+    openFuncInstance() {
+	if(0 < arguments.length) { this.openFuncInstanceObj = arguments[0]; }
+	return this.openFuncInstanceObj;
+    } // end of openFuncInstance
+    
+    modeOnFuncInstance() {
+	if(0 < arguments.length) { this.modeOnFuncInstanceObj = arguments[0]; }
+	return this.modeOnFuncInstanceObj;
+    } // end of modeOnFuncInstance
+
+    // edtor open
+    // this.open is called when right click on any part of the body
+    // this.open is called by the eventListener that was set at this.modeOn()
+    // eventuary editor_open() will be called by each object clicked
+    open(event) {
+	// console.log("class PageEditor_bx open()");
+	if(event.button != 2){ return;} // click right;
+
+//	let object_to_open = this.object_to_open(event);
+//	if(object_to_open == undefined){ return;}
+
+	//	this.editor_open(object_to_open);
+
+	let blox = this.objectToOpen(event);
+	blox.editor().draw();
+
+    } // end of open
+
+    objectToOpen(event) {
+	// console.log("class PageEditor_bx objectToOpen()");
+	let bxAddress = attributeBxAddress(event.target);
+	return this.bloxByAddress(bxAddress);
+    } // end of objectToOpen
+
+    // editorOpen() {
+    // } // end of editorOpen
+    
+    dataChild(child) {
+	// child.index()
+	// child.constructor.name
+	
+    } // end of dataChild
+
+    // convert html to node elements .
+    // also set eventListener for each input button
+    // if editor_menu_item exists in this.xxx() set it as eventListener action
+    // if editor_menu_item exists in ob.xxx() set it as eventListener action
+    eleSetup() {
+	let obj = arguments[0];
+	let html = arguments[1];
+
+	// "ele": top element to handle further on
+	// "ele" should have only one node at the top layer
+	// if argument html becomes only one node at the top,
+	// the top node can be ele
+	// if it becomes plural nodes, put those under eleDiv
+	// and make eleDiv as "ele"
+	let ele;
+
+    } // end of eleSetup
+
+} // end of class PageEditor_bx
+
+class PageEditor_bxElement extends BloxElement {
+    // console.log("wc.js class PageEditor_bxElement");
+
+    htmlEditorMenu = (`
+    <table class="editModeTable">
+      <tr>
+	<td>
+	  Edit MODE 
+	  <input type="button" value="Exit" class="editMenu_exit">
+
+	  <span class="editMenu_saveMenu">
+	   /
+	   <input type="button" value="Save" class="editMenu_save">
+	  </span>
+
+	  <span class="editMenu_exitConfirm">
+	  Exit without saving ?
+	  <input type="button" value="Discard changes" class="editMenu_discard">
+	  <input type="button" value="Cancel" class="editMenu_exitCancel">
+	  </span>
+
+	  <input type="button" value="href_reference" class="editMenu_href_reference">
+	  <input type="button" value="page_move" class="editMenu_page_move_open">
+	  <input type="button" value="page_json" class="editMenu_page_json_open">
+
+
+	  <input type="button" value="Set Group Top" class="editMenu_group_top_set">
+
+
+	</td>
+      </tr>
+    </table>
+`);
+
+    draw() {
+	// console.log("wc.js class PageEditor_bxElement draw()");
+
+	// let ele = this.eleFromHtml(htmlEditorMenu());
+	let ele = this.eleFromHtml(this.htmlEditorMenu);
+
+	this.eleVisibleSet(
+	    ele,
+	    {
+		'editMenu_exit' : 1
+		,'editMenu_saveMenu' : 0
+		,'editMenu_exitConfirm' : 0
+	    }
+	    // req
+	);
+	
+	this.ele(ele);
+
+	// this.ele(temp_bx_ele(this));
+	
+	// this.eleTarget().appendChild(this.ele());
+	
+    } // end of draw
+
+    targetNext() {
+    } // end of targetNext
+    
+} // end of class PageEditor_bxElement
+
+function editMenuKeys2() {
+    return [
+	'exit'
+	, 'save'
+	, 'exit'
+	, 'discard'
+	, 'exitCancel'
+	// , 'editModeImport'
+	, 'page_move_open'
+	, 'page_json_open'
+	, 'group_top_set'
+	, 'href_reference'
+    ];
+} // end of function editMenuKeys2
+
+function hrefEventAdd(eleTop) {
+    let as = eleTop.querySelectorAll("a");
+    as.forEach(function(a){
+	let href = a.getAttribute("href");
+	if(href){
+	    a.addEventListener("click", hrefEventHandle_bx);
+	}
+    });
+} // end of function hrefEventAdd
+
+function hrefEventRemove(eleTop) {
+    let as = eleTop.querySelectorAll("a");
+    as.forEach(function(a){
+	let href = a.getAttribute("href");
+	if(href){
+	    a.removeEventListener("click", hrefEventHandle_bx);
+	}
+    });
+} // end of function hrefEventRemove
+
+function hrefEventHandle_bx(event) {
+    // console.log("wc.js function hrefEventHandle ");
+
+    let href = event.target.getAttribute("href");
+
+    // href : #abc
+    // move to #abc .
+    // #: move to top
+    if(href == "#"){
+	window.scrollTo(0, 0);
+	return;
+    }
+    
+    if(href.match(/^#(.+)/)){
+
+	// location.href = href;
+	// remove #
+	scrollHash(href.slice(1));
+
+	return;
+    }
+
+    if(href == "javascript:history.back()"){
+	javascript:history.back();
+	return;
+    }
+
+    let data = {"href" : href};
+    
+    console.log("wc.jp function hrefEventHandle post href:" + href)
+    let res = posData("href", data);
+
+    res.then(data => {
+	// console.log("wc.jp function hrefEventHandle res.data:" + data.filename);
+	console.log("wc.jp function hrefEventHandle res.path:" + data.path);
+	console.log("wc.jp function hrefEventHandle res.dest:" + data.dest);
+
+	if(data.dest){
+	    location.href = data.dest;
+	}
+	
+    });
+
+    preventContextmenu(event); // prevent move to href2;
+
+} // end of function hrefEventHandle_bx
+
+function attributeBxAddress(eleArg) {
+
+    // ele.setAttribute("data-bxAddress", this.bxAddress());
+    
+    let ele = eleArg;
+    while(ele){
+	let bxAddress = ele.getAttribute("data-bxAddress");
+	if(bxAddress){ return bxAddress; }
+	ele = ele.parentNode;
+    }
+    
+} // end of function attributeBxAddress
+
+// What class constructor name and top element that eleArg is of
+// return [className, eleTop]
+// function whatClassNameOf(eleArg) {
+//     let ele = eleArg;
+//     while(ele){
+
+// 	// ele does not have classList
+// 	const classList = ele.classList;
+// 	if(! classList) {
+// 	    ele = ele.parentNode;
+// 	    continue;
+// 	}
+
+// 	for(const className of classList) {
+// 	    // the className is BloxClassName
+// 		return [className, ele];
+// 	    }
+// 	}
+// 	ele = ele.parentNode;
+// 	continue;
+//     }
+    
+// } // end of function whatClassNameOf
 "####
 }

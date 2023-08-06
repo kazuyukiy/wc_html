@@ -849,6 +849,16 @@ class Editor {
 
     } // end of editor_changed
 
+    editor_eventIndividual(obj, event) {
+	let attClass = event.target.getAttribute("class").split(" ");
+	for (const name of attClass) {
+	    const f0_code = new Function('return this.editor_'+name+';');
+	    const f0 = f0_code.apply(obj);
+	    if(f0 == undefined){ continue;}
+	    f0.apply(obj, [event]);
+	}
+    } // end of editor_eventIndividual
+    
 } // end of class Editor
 
 const editor_menu_item  = [
@@ -858,6 +868,7 @@ const editor_menu_item  = [
     , 'delete'
     , 'deleteExecute'
     , 'deleteCancel'
+    , 'eventIndividual'
 ];
 
 const classEditList2 =
@@ -2332,6 +2343,7 @@ const htmlEditorSubsectionContent = `
 	      <option value="text">Text</option>
 	      <option value="script">Script</option>
 	    </select>
+	    <input type="button" value="B" class="editor_eventIndividual textareaBigger">
 	  </td>
 	</tr>
 
@@ -3734,6 +3746,12 @@ class SubsectionContent {
 	this.editorEle({"ele" : undefined});
     } // end of editor_close
 
+    editor_textareaBigger(event) {
+	let ele = this.editorEle().drawn.querySelector(
+	    ".editor_subsection_content");
+	ele.classList.add("textareaBig");
+    }
+    
 } // end of class SubsectionContent
 
 function eleVisibleSet (eleArg, req) {
