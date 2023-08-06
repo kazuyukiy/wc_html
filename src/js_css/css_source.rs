@@ -1,5 +1,6 @@
 pub fn contents() -> &'static str {
     r####"
+
 .invisible { display: none; }
 
 .subsection {
@@ -31,6 +32,25 @@ pub fn contents() -> &'static str {
 .editSubsectionContent {
     width: 98%;
 }
+
+.tableBorder {
+    border: 1px black solid;
+    border-collapse: collapse;
+}
+.tableBorder td {
+    padding: 5px 10px 5px 10px;
+    border: 1px black solid;
+    vertical-align: top;
+}
+
+.tableNoBorder {
+    border-collapse: collapse;
+}
+.tableNoBorder td{
+    padding: 5px 10px 5px 10px;
+    vertical-align: top;
+}
+
 
 .tableCollapse1 {
     border: 1px black solid;
@@ -65,8 +85,8 @@ pub fn contents() -> &'static str {
 }
       
 .textareaBig {
-    width: 500px;
-    height: 300px;
+    width: 800px;
+    height: 200px;
 }
 "####
 }
